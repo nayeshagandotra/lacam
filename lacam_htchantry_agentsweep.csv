@@ -3582,3 +3582,11 @@ agents,map_file,solver,solved,soc,soc_lb,makespan,makespan_lb,sum_of_loss,sum_of
 380,ht_chantry.map,planner,1,50635,35643,210,210,42198,35643,54,0,100,False,ht_chantry-random-22.scen,380
 380,ht_chantry.map,planner,1,47759,35643,228,210,40472,35643,5124,0,100,True,ht_chantry-random-22.scen,380
 380,ht_chantry.map,planner,1,50635,35643,210,210,42198,35643,56,0,1000,False,ht_chantry-random-22.scen,380
+380,ht_chantry.map,planner,1,47553,35643,220,210,40314,35643,48897,0,1000,True,ht_chantry-random-22.scen,380
+420,ht_chantry.map,planner,1,56665,39014,212,210,47070,39014,63,0,0,False,ht_chantry-random-22.scen,420
+420,ht_chantry.map,planner,1,56665,39014,212,210,47070,39014,64,0,0,True,ht_chantry-random-22.scen,420
+420,ht_chantry.map,planner,1,56665,39014,212,210,47070,39014,62,0,1,False,ht_chantry-random-22.scen,420
+420,ht_chantry.map,planner,1,54509,39014,215,210,45791,39014,163,0,1,True,ht_chantry-random-22.scen,420
+420,ht_chantry.map,planner,1,56665,39014,212,210,47070,39014,63,0,10,False,ht_chantry-random-22.scen,420
+420,ht_chantry.map,planner,1,53108,39014,211,210,45457,39014,831,0,10,True,ht_chantry-random-22.scen,420
+420,ht_chantry.map,planner,1,56665,39014,212,210,47070,39014,65,0,100,False,ht_chantry-random-22.scen,420
