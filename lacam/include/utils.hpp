@@ -34,12 +34,15 @@ void info(const int level, const int verbose, Head&& head, Tail&&... tail)
 
 // time manager
 struct Deadline {
-  const Time::time_point t_s;
+  Time::time_point t_s; // Removed const to allow resetting
   const double time_limit_ms;
 
   Deadline(double _time_limit_ms = 0);
   double elapsed_ms() const;
   double elapsed_ns() const;
+
+  // New reset function
+  void reset();
 };
 
 double elapsed_ms(const Deadline* deadline);

@@ -20,6 +20,12 @@ double Deadline::elapsed_ns() const
       .count();
 }
 
+// New reset function implementation
+void Deadline::reset()
+{
+  t_s = Time::now(); // Reset the start time to now
+}
+
 double elapsed_ms(const Deadline* deadline)
 {
   if (deadline == nullptr) return 0;
@@ -35,7 +41,7 @@ double elapsed_ns(const Deadline* deadline)
 bool is_expired(const Deadline* deadline)
 {
   if (deadline == nullptr) return false;
-  return deadline->elapsed_ms() > deadline->time_limit_ms;
+  return deadline->elapsed_ms() >= deadline->time_limit_ms;
 }
 
 float get_random_float(std::mt19937* MT, float from, float to)

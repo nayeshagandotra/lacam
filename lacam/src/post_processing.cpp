@@ -37,7 +37,7 @@ bool is_feasible_solution(const Instance& ins, const Solution& solution,
         auto v_j_to = solution[t][j];
         // vertex conflicts
         if (v_j_to == v_i_to) {
-          info(1, verbose, "vertex conflict");
+          info(1, verbose, "vertex conflict  " + std::to_string(t) + std::to_string(i) + " " + std::to_string(j) + " " + std::to_string(v_j_to->id)); 
           return false;
         }
         // swap conflicts

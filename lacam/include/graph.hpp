@@ -7,6 +7,8 @@
 struct Vertex {
   const int id;     // index for V in Graph
   const int index;  // index for U (width * y + x) in Graph
+  const int x = index%32;
+  const int y = index/32;
   std::vector<Vertex*> neighbor;
 
   Vertex(int _id, int _index);
