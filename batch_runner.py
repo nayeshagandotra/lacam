@@ -16,7 +16,7 @@ def run_lacam(args, opti_deadline, bool_opti):
     # Construct the command
     command = [args["program"]] + args["args"] + [opti_flag, opti_deadline_arg]
 
-    print(f"Running command: {' '.join(command)}")
+    # print(f"Running command: {' '.join(command)}")
     
     try:
         # Run the subprocess and capture output
@@ -127,7 +127,7 @@ def lacam_batch_runner(output_csv, map_folder, result_file, max_time_threshold=5
         print(f"No .scen files found in {map_folder}. Please check the folder path.")
         return
     
-    max_n_limit = 380  # Initially, no limit
+    max_n_limit = 1000  # Initially, no limit
 
     # Check the maximum processed agents for the current scenario
     existing_data = pd.read_csv(output_csv) if os.path.exists(output_csv) else pd.DataFrame()
@@ -137,6 +137,7 @@ def lacam_batch_runner(output_csv, map_folder, result_file, max_time_threshold=5
         scen_file_path = os.path.join(map_folder, scen_file)
         
         max_processed_n = 20
+        skip_loop = False
 
         if not existing_data.empty:
             scenario_data = existing_data[existing_data["Scenario_File"] == scen_file]
@@ -145,12 +146,11 @@ def lacam_batch_runner(output_csv, map_folder, result_file, max_time_threshold=5
                 if max_processed_n >= max_n_limit:
                     continue
         
-        print(f"scen_file: {scen_file}, max_n_limit: {max_n_limit}")
         # Loop through different numbers of agents (N) using range(20, 600, 40)
         for N in range(max_processed_n, max_n_limit + 1, 40):  # Adjust these numbers as needed
             for opti_deadline in [0, 1, 10, 100, 1000]:  # From 0ms to 1s inclusive
                 for bool_opti in [False, True]:  # Run for both False and True
-                    print(f"Running lacam with N={N}, bool_opti={bool_opti}, opti_deadline={opti_deadline}ms, scenario={scen_file_path})...")
+                    # print(f"Running lacam with N={N}, bool_opti={bool_opti}, opti_deadline={opti_deadline}ms, scenario={scen_file_path})...")
                     # Reset args for each new scenario file
                     args["args"] = [
                         "-v", "1",
@@ -173,6 +173,8 @@ def lacam_batch_runner(output_csv, map_folder, result_file, max_time_threshold=5
                         print(f"Experiment with {N} agents took {elapsed_time:.2f} seconds, which exceeds the threshold of {max_time_threshold} seconds.")
                         # Update the max_n_limit to stop further larger agent numbers for this and subsequent scenarios
                         max_n_limit = N  # Set the new limit to the last successful N value
+                        print(f"scen_file: {scen_file}, max_n_limit: {max_n_limit}")
+                        skip_loop = True
                         break  # Skip the remaining N values for this scenario
 
                     # Parse the result file for output data
@@ -190,7 +192,11 @@ def lacam_batch_runner(output_csv, map_folder, result_file, max_time_threshold=5
 
                     df = pd.DataFrame([parsed_data])
                     df.to_csv(output_csv, mode='a', header=not os.path.exists(output_csv), index=False)
-                    print(f"Results for {scen_file} with N={N} saved to {output_csv}")
+                    # print(f"Results for {scen_file} with N={N} saved to {output_csv}")
+                if skip_loop:
+                    break
+            if skip_loop:
+                break
 
     print("Batch processing complete.")
 
@@ -217,7 +223,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_time_threshold",
         type=int,
-        default=50,
+        default=60,
         help="Maximum time (in seconds) allowed for an experiment. Default is 50 seconds."
     )
 

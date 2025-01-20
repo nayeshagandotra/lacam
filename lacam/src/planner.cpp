@@ -75,25 +75,8 @@ Planner::Planner(const Instance* _ins, const Deadline* _deadline,
 int Planner::calculate_penalty(Agent* ai) {
   
   const auto i = ai->id;
-  const auto K = ai->v_now->neighbor.size();
-
-  // get candidates for next locations
-  for (size_t k = 0; k < K; ++k) {
-    auto u = ai->v_now->neighbor[k];
-    C_next[i][k] = u;
-    if (MT != nullptr)
-      tie_breakers[u->id] = get_random_float(MT);  // set tie-breaker 
-  }
-  C_next[i][K] = ai->v_now;
-
-  // sort, note: K + 1 is sufficient
-  std::sort(C_next[i].begin(), C_next[i].begin() + K + 1,
-            [&](Vertex* const v, Vertex* const u) {
-              return D.get(i, v) + tie_breakers[v->id] <
-                     D.get(i, u) + tie_breakers[u->id];
-            });
   // calculate ideal dist for penalty purposes
-  int ideal_dist = D.get(ai->id, C_next[i][0]);  // Distance to goal if taking ideal move
+  int ideal_dist = D.get(ai->id, ai->C_next[i][0]);  // Distance to goal if taking ideal move
   int actual_dist = D.get(ai->id, ai->v_next); // Distance to goal based on suggested move
   return actual_dist - ideal_dist;
 }
@@ -138,11 +121,13 @@ bool Planner::addToGroup(Agent* ai, Agent* aj){
     // add aj to group- assume ai is already in g
     ng->push_back(aj);
     aj->group = ng;
+    num_grouped_agents +=1;
     return true;
   } else if (aj->group != nullptr && ai->group == nullptr){
     ng = aj->group;
     ng->push_back(ai);
     ai->group = ng;
+    num_grouped_agents +=1;
     return true;
   } else if (aj->group == nullptr && ai->group == nullptr){
     // neither have group
@@ -152,6 +137,7 @@ bool Planner::addToGroup(Agent* ai, Agent* aj){
     ai->group = ng;
     aj->group = ng;
     groups.push_back(ng);
+    num_grouped_agents +=2;
   } else if ((aj->group != nullptr && ai->group != nullptr) && aj->group != ai->group){
     // merge groups
     Agents* group1 = ai->group;
@@ -509,6 +495,7 @@ bool Planner::get_new_config(Node* S, Constraint* M)
   // perform PIBT
   timestep_penalty = 0;
   int pi = 0;
+  num_grouped_agents = 0;
   for (auto k : S->order) {
     auto a = A[k];
     a->priority = pi;
@@ -529,7 +516,9 @@ bool Planner::get_new_config(Node* S, Constraint* M)
     size_t i = 0;
     opti_deadline->reset();
 
-    //  && 
+    // double overall_deadline = opti_deadline->time_limit_ms;
+
+    //   
     while (j-1 != i && !is_expired(opti_deadline)) {
         // Record the start time of the iteration
         auto start_time = std::chrono::high_resolution_clock::now();
@@ -539,9 +528,19 @@ bool Planner::get_new_config(Node* S, Constraint* M)
         Agents* g = groups[i];
         A_copy = *g;
         best_penalty = 100000;
+        int num_agents = 0;
+        int tsp = 0;
 
         for (auto a : A_copy) {
-            a->v_next_best = a->v_next; // Reserve PIBT answer for cutoff reasons
+          tsp+= calculate_penalty(a);
+          num_agents += 0;
+          a->v_next_best = a->v_next; // Reserve PIBT answer for cutoff reasons
+        }
+
+        // opti_deadline->time_limit_ms = overall_deadline*(num_agents/num_grouped_agents);
+
+        if (tsp == 0){
+          continue;
         }
 
         OptiPIBT(A_copy, nullptr, 0);
@@ -557,14 +556,12 @@ bool Planner::get_new_config(Node* S, Constraint* M)
         i++;
 
         // Record the end time of the iteration
-        auto end_time = std::chrono::high_resolution_clock::now();
-
         // Calculate and print the elapsed time for this iteration
         // if (is_expired(opti_deadline)){
-        //   std::cout << "expired = " << true << std::endl;
-        //   auto elapsed_time_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count();
-        //   std::cout << "Time taken for iteration " << i << ": " << elapsed_time_ms << " ns" << std::endl;
-        //   break;
+          // std::cout << "expired = " << true << std::endl;
+          // auto elapsed_time_ms = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count();
+          // std::cout << "Time taken for iteration " << i << ": " << elapsed_time_ms << " ns" << std::endl;
+          // break;
         // }
     }
   }
@@ -597,6 +594,8 @@ bool Planner::funcPIBT(Agent* ai)
               return D.get(i, v) + tie_breakers[v->id] <
                      D.get(i, u) + tie_breakers[u->id];
             });
+  
+  ai->C_next = C_next;
 
   // calculate ideal dist for penalty purposes
   int ideal_dist = D.get(ai->id, C_next[i][0]);  // Distance to goal if taking ideal move

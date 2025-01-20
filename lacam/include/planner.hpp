@@ -48,6 +48,8 @@ using Nodes = std::vector<Node*>;
 
 struct Agent; 
 using Agents = std::vector<Agent*>; 
+// next location candidates, for saving memory allocation
+using Candidates = std::vector<std::array<Vertex*, 5> >;
 
 // PIBT agent
 struct Agent {
@@ -59,10 +61,8 @@ struct Agent {
   bool is_constrained; //should we recurse through all the actions?
   Agents* group;        // group this belongs to
   int priority;
+  Candidates C_next;                // next location candidates
 };
-
-// next location candidates, for saving memory allocation
-using Candidates = std::vector<std::array<Vertex*, 5> >;
 
 struct Planner {
   const Instance* ins;
@@ -77,6 +77,7 @@ struct Planner {
   int timestep_penalty;
   int best_penalty;
   int group_no;
+  int num_grouped_agents;
 
   // solver utils
   const int N;  // number of agents
