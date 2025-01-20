@@ -3590,3 +3590,5 @@ agents,map_file,solver,solved,soc,soc_lb,makespan,makespan_lb,sum_of_loss,sum_of
 420,ht_chantry.map,planner,1,56665,39014,212,210,47070,39014,63,0,10,False,ht_chantry-random-22.scen,420
 420,ht_chantry.map,planner,1,53108,39014,211,210,45457,39014,831,0,10,True,ht_chantry-random-22.scen,420
 420,ht_chantry.map,planner,1,56665,39014,212,210,47070,39014,65,0,100,False,ht_chantry-random-22.scen,420
+420,ht_chantry.map,planner,1,53204,39014,213,210,45039,39014,6926,0,100,True,ht_chantry-random-22.scen,420
+420,ht_chantry.map,planner,1,56665,39014,212,210,47070,39014,61,0,1000,False,ht_chantry-random-22.scen,420

@@ -1388,3 +1388,5 @@ agents,map_file,solver,solved,soc,soc_lb,makespan,makespan_lb,sum_of_loss,sum_of
 260,random-32-32-20.map,planner,1,13028,5858,104,51,10798,5858,10,0,10,False,random-32-32-20-random-13.scen,260
 260,random-32-32-20.map,planner,1,14334,5858,139,51,11230,5858,447,0,10,True,random-32-32-20-random-13.scen,260
 260,random-32-32-20.map,planner,1,13028,5858,104,51,10798,5858,10,0,100,False,random-32-32-20-random-13.scen,260
+260,random-32-32-20.map,planner,1,13028,5858,104,51,10798,5858,10,0,100,True,random-32-32-20-random-13.scen,260
+260,random-32-32-20.map,planner,1,13028,5858,104,51,10798,5858,10,0,1000,False,random-32-32-20-random-13.scen,260
