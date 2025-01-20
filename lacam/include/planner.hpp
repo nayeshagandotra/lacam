@@ -61,7 +61,9 @@ struct Agent {
   bool is_constrained; //should we recurse through all the actions?
   Agents* group;        // group this belongs to
   int priority;
+  // trying new vars
   Candidates C_next;                // next location candidates
+  int penalty;
 };
 
 struct Planner {

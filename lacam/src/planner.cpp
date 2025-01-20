@@ -137,7 +137,7 @@ bool Planner::addToGroup(Agent* ai, Agent* aj){
     ai->group = ng;
     aj->group = ng;
     groups.push_back(ng);
-    num_grouped_agents +=2;
+    num_grouped_agents +=1;
   } else if ((aj->group != nullptr && ai->group != nullptr) && aj->group != ai->group){
     // merge groups
     Agents* group1 = ai->group;
@@ -518,7 +518,7 @@ bool Planner::get_new_config(Node* S, Constraint* M)
 
     // double overall_deadline = opti_deadline->time_limit_ms;
 
-    //   
+    //   && !is_expired(opti_deadline)
     while (j-1 != i && !is_expired(opti_deadline)) {
         // Record the start time of the iteration
         auto start_time = std::chrono::high_resolution_clock::now();
@@ -532,7 +532,7 @@ bool Planner::get_new_config(Node* S, Constraint* M)
         int tsp = 0;
 
         for (auto a : A_copy) {
-          tsp+= calculate_penalty(a);
+          tsp+= a->penalty;
           num_agents += 0;
           a->v_next_best = a->v_next; // Reserve PIBT answer for cutoff reasons
         }
@@ -540,6 +540,7 @@ bool Planner::get_new_config(Node* S, Constraint* M)
         // opti_deadline->time_limit_ms = overall_deadline*(num_agents/num_grouped_agents);
 
         if (tsp == 0){
+          i++;
           continue;
         }
 
@@ -594,9 +595,9 @@ bool Planner::funcPIBT(Agent* ai)
               return D.get(i, v) + tie_breakers[v->id] <
                      D.get(i, u) + tie_breakers[u->id];
             });
-  
-  ai->C_next = C_next;
 
+  // ai->C_next = C_next;
+  ai->penalty = 0;
   // calculate ideal dist for penalty purposes
   int ideal_dist = D.get(ai->id, C_next[i][0]);  // Distance to goal if taking ideal move
   int actual_dist;
@@ -637,6 +638,7 @@ bool Planner::funcPIBT(Agent* ai)
     actual_dist = D.get(ai->id, ai->v_next);
     diff = actual_dist - ideal_dist;
     timestep_penalty += diff; //0 if equal
+    ai->penalty = diff;
 
     // success to plan next one step
     return true;
@@ -650,6 +652,7 @@ bool Planner::funcPIBT(Agent* ai)
   actual_dist = D.get(ai->id, ai->v_next);
   diff = actual_dist - ideal_dist;
   timestep_penalty += diff; //0 if equal
+  ai->penalty = diff;
   return false;
 }
 
