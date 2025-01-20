@@ -109,27 +109,31 @@ void Planner::refresh_lists(Agents A){
   }
 }
 
-bool Planner::addToGroup(Agent* ai, Agent* aj){
+bool Planner::addToGroup(Agent* ai, Agent* aj, bool del_group) {
   // if not in opti mode,
   // if any agent is constrained, don't add to group
-  if (!opti || ai->is_constrained || aj->is_constrained){
+  if (!opti || ai->is_constrained || aj->is_constrained) {
     return false;
   }
+
   Agents* ng;
-  if (ai->group != nullptr && aj->group == nullptr){
+
+  if (ai->group != nullptr && aj->group == nullptr) {
     ng = ai->group;
     // add aj to group- assume ai is already in g
     ng->push_back(aj);
     aj->group = ng;
-    num_grouped_agents +=1;
+    num_grouped_agents += 1;
     return true;
-  } else if (aj->group != nullptr && ai->group == nullptr){
+
+  } else if (aj->group != nullptr && ai->group == nullptr) {
     ng = aj->group;
     ng->push_back(ai);
     ai->group = ng;
-    num_grouped_agents +=1;
+    num_grouped_agents += 1;
     return true;
-  } else if (aj->group == nullptr && ai->group == nullptr){
+
+  } else if (aj->group == nullptr && ai->group == nullptr) {
     // neither have group
     ng = new Agents();
     ng->push_back(ai);
@@ -137,8 +141,9 @@ bool Planner::addToGroup(Agent* ai, Agent* aj){
     ai->group = ng;
     aj->group = ng;
     groups.push_back(ng);
-    num_grouped_agents +=1;
-  } else if ((aj->group != nullptr && ai->group != nullptr) && aj->group != ai->group){
+    num_grouped_agents += 2;
+
+  } else if ((aj->group != nullptr && ai->group != nullptr) && aj->group != ai->group) {
     // merge groups
     Agents* group1 = ai->group;
     Agents* group2 = aj->group;
@@ -149,12 +154,12 @@ bool Planner::addToGroup(Agent* ai, Agent* aj){
 
     // Insert all agents from group1 into the set
     for (const auto& agent : *group1) {
-        unique_agents.insert(agent);
+      unique_agents.insert(agent);
     }
 
     // Insert all agents from group2 into the set, avoiding duplicates
     for (const auto& agent : *group2) {
-        unique_agents.insert(agent);
+      unique_agents.insert(agent);
     }
 
     // Reserve space in new_group to avoid unnecessary reallocations
@@ -162,7 +167,7 @@ bool Planner::addToGroup(Agent* ai, Agent* aj){
 
     // Copy unique agents back to new_group
     for (const auto& agent : unique_agents) {
-        new_group->push_back(agent);
+      new_group->push_back(agent);
     }
 
     // Update group pointers for all agents in both groups
@@ -175,6 +180,16 @@ bool Planner::addToGroup(Agent* ai, Agent* aj){
 
     // Add the new group to the groups list
     groups.push_back(new_group);
+
+    // If del_group is true, delete redundant groups
+    if (del_group) {
+      groups.erase(std::remove(groups.begin(), groups.end(), group1), groups.end());
+      groups.erase(std::remove(groups.begin(), groups.end(), group2), groups.end());
+
+      // Free the memory for group1 and group2
+      delete group1;
+      delete group2;
+    }
   }
   return false;
 }
@@ -254,7 +269,7 @@ std::pair<bool, int> Planner::OptiPIBT(Agents A, Agent* aj, int accumulated_pena
             break;
         }
       }
-      if (addToGroup(occupied_next[u->id], ai) && !group_exists){
+      if (addToGroup(occupied_next[u->id], ai, false) && !group_exists){
         // need to add this new group to the groups list because something new has been added
         groups.push_back(ai->group);
       }
@@ -277,7 +292,7 @@ std::pair<bool, int> Planner::OptiPIBT(Agents A, Agent* aj, int accumulated_pena
                 break;
             }
         }
-        if (addToGroup(ak, ai) && !group_exists){
+        if (addToGroup(ak, ai, false) && !group_exists){
           // need to add this new group to the groups list because something new has been added
           groups.push_back(ai->group);
         }
@@ -299,7 +314,7 @@ std::pair<bool, int> Planner::OptiPIBT(Agents A, Agent* aj, int accumulated_pena
             break;
         }
       }
-      if (addToGroup(ak, ai) && !group_exists){
+      if (addToGroup(ak, ai, false) && !group_exists){
         // need to add this new group to the groups list because something new has been added
         groups.push_back(ai->group);
       }
@@ -377,7 +392,6 @@ Solution Planner::solve()
   std::vector<Config> solution;
 
   //  
-  int soln_count = 0;
   while (!OPEN.empty() && !is_expired(deadline)) {
     loop_cnt += 1;
 
@@ -415,8 +429,6 @@ Solution Planner::solve()
 
     // create successors at the high-level search
     if (!get_new_config(S, M)) continue;
-
-    soln_count ++;    
 
     // create new configuration
     auto C = Config(N, nullptr);
@@ -519,9 +531,7 @@ bool Planner::get_new_config(Node* S, Constraint* M)
     // double overall_deadline = opti_deadline->time_limit_ms;
 
     //   && !is_expired(opti_deadline)
-    while (j-1 != i && !is_expired(opti_deadline)) {
-        // Record the start time of the iteration
-        auto start_time = std::chrono::high_resolution_clock::now();
+    while (j > 0 && j-1 != i) {
 
         // std::cout << "i = " << i << std::endl;
         group_no = i;
@@ -539,10 +549,10 @@ bool Planner::get_new_config(Node* S, Constraint* M)
 
         // opti_deadline->time_limit_ms = overall_deadline*(num_agents/num_grouped_agents);
 
-        if (tsp == 0){
-          i++;
-          continue;
-        }
+        // if (tsp == 0){
+        //   i++;
+        //   continue;
+        // }
 
         OptiPIBT(A_copy, nullptr, 0);
         refresh_lists(A_copy);
@@ -608,7 +618,7 @@ bool Planner::funcPIBT(Agent* ai)
 
     // avoid vertex conflicts
      if (occupied_next[u->id] != nullptr){
-      addToGroup(ai, occupied_next[u->id]);
+      addToGroup(ai, occupied_next[u->id], true);
       continue;
     } 
 
@@ -617,7 +627,7 @@ bool Planner::funcPIBT(Agent* ai)
     // avoid swap conflicts with constraints (and with inherited agents)
     // this condition takes care of aj swap
     if (ak != nullptr && ak->v_next == ai->v_now){
-      addToGroup(ai, ak);
+      addToGroup(ai, ak, true);
       continue;
     } 
 
@@ -630,7 +640,7 @@ bool Planner::funcPIBT(Agent* ai)
 
     // priority inheritance
     if (ak->v_next == nullptr){
-      addToGroup(ai, ak);
+      addToGroup(ai, ak, true);
       if (!funcPIBT(ak)) continue;
     } 
 

@@ -101,7 +101,7 @@ struct Planner {
   int calculate_penalty(Agent* ai);
   void print_penalty(const std::string& filename, int penalty);
   void refresh_lists(Agents A);
-  bool addToGroup(Agent* ai, Agent* aj);
+  bool addToGroup(Agent* ai, Agent* aj, bool del_group);
   std::pair<bool, int> OptiPIBT(Agents A, Agent* aj, int accumulated_penalty);
   Solution solve();
   bool get_new_config(Node* S, Constraint* M);
