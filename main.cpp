@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
   const auto N = std::stoi(program.get<std::string>("num"));
   // New arguments
   const auto bool_opti = program.get<bool>("bool_opti");
-  const auto opti_deadline_ms =
+  auto opti_deadline_ms =
       std::stoi(program.get<std::string>("opti_deadline"));
   const auto ins = scen_name.size() > 0 ? Instance(scen_name, map_name, N)
                                         : Instance(map_name, &MT, N);

@@ -36,6 +36,7 @@ void info(const int level, const int verbose, Head&& head, Tail&&... tail)
 struct Deadline {
   Time::time_point t_s; // Removed const to allow resetting
   double time_limit_ms;
+  double time_limit_ns;
 
   Deadline(double _time_limit_ms = 0);
   double elapsed_ms() const;
@@ -48,5 +49,6 @@ struct Deadline {
 double elapsed_ms(const Deadline* deadline);
 double elapsed_ns(const Deadline* deadline);
 bool is_expired(const Deadline* deadline);
+bool is_expired_ns(const Deadline* deadline);
 
 float get_random_float(std::mt19937* MT, float from = 0, float to = 1);

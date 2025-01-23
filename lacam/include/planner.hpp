@@ -75,11 +75,14 @@ struct Planner {
   bool opti;
 
 
-  // new ints
+  // new vars
   int timestep_penalty;
   int best_penalty;
   int group_no;
   int num_grouped_agents;
+
+  std::vector<int> pens1; //logging
+  std::vector<int> pens2; //logging
 
   // solver utils
   const int N;  // number of agents
@@ -99,7 +102,7 @@ struct Planner {
   Planner(const Instance* _ins, const Deadline* _deadline, std::mt19937* _MT,
           int _verbose = 0);
   int calculate_penalty(Agent* ai);
-  void print_penalty(const std::string& filename, int penalty);
+  void print_penalty(const std::string& filename, std::vector<int> penalties);
   void refresh_lists(Agents A);
   bool addToGroup(Agent* ai, Agent* aj, bool del_group);
   std::pair<bool, int> OptiPIBT(Agents A, Agent* aj, int accumulated_penalty);

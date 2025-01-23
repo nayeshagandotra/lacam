@@ -81,18 +81,21 @@ int Planner::calculate_penalty(Agent* ai) {
   return actual_dist - ideal_dist;
 }
 
-void Planner::print_penalty(const std::string& filename, int penalty) {
-    // std::string output_dir = "code/output/";
+void Planner::print_penalty(const std::string& filename, std::vector<int> penalties) {
     std::string full_filename = filename;
-    
-    std::ofstream outFile(full_filename, std::ios::app);  // Open in append mode
+
+    // Open file in append mode
+    std::ofstream outFile(full_filename, std::ios::app);
     if (!outFile) {
         std::cerr << "Error opening file: " << full_filename << "\n";
         return;
     }
 
-    // Write start positions
-    outFile << penalty << "\n";
+    // Write each penalty to the file
+    for (int penalty : penalties) {
+        outFile << penalty << "\n";
+    }
+
     outFile.close();
 }
 
@@ -196,7 +199,7 @@ bool Planner::addToGroup(Agent* ai, Agent* aj, bool del_group) {
 
 std::pair<bool, int> Planner::OptiPIBT(Agents A, Agent* aj, int accumulated_penalty){
 
-  if (is_expired(opti_deadline)){
+  if (is_expired_ns(opti_deadline)){
     return std::make_pair(false, 100000);
   }
 
@@ -406,6 +409,8 @@ Solution Planner::solve()
         S = S->parent;
       }
       std::reverse(solution.begin(), solution.end());
+      print_penalty("costs1.txt", pens1);
+      print_penalty("costs2.txt", pens2);
       break;
     }
 
@@ -515,25 +520,25 @@ bool Planner::get_new_config(Node* S, Constraint* M)
     pi ++;
   }
 
-  // int pen1 = 0;
-  // for (auto a: A){
-  //   pen1 += calculate_penalty(a);
-  // }
-  // print_penalty("costs.txt", pen1);
+  int pen1 = 0;
+  for (auto a: A){
+    pen1 += calculate_penalty(a);
+  }
+  pens1.push_back(pen1);
 
   // if opti, refine with opti-pibt
   if (opti && timestep_penalty != 0) {
     group_no = 0;
-    size_t j = groups.size();
-    size_t i = 0;
     opti_deadline->reset();
 
-    // double overall_deadline = opti_deadline->time_limit_ms;
+    double overall_deadline = opti_deadline->time_limit_ms;
 
-    //   && !is_expired(opti_deadline)
-    while (j > 0 && j-1 != i) {
+    //   && 
+    for (size_t i = 0; i < groups.size(); ++i) {
 
-        // std::cout << "i = " << i << std::endl;
+        if (is_expired(opti_deadline)) break;
+
+        // std::cout << "i = " << i << std::endl; 
         group_no = i;
         Agents* g = groups[i];
         A_copy = *g;
@@ -543,16 +548,18 @@ bool Planner::get_new_config(Node* S, Constraint* M)
 
         for (auto a : A_copy) {
           tsp+= a->penalty;
-          num_agents += 0;
+          num_agents += 1;
           a->v_next_best = a->v_next; // Reserve PIBT answer for cutoff reasons
         }
 
-        // opti_deadline->time_limit_ms = overall_deadline*(num_agents/num_grouped_agents);
+        if (tsp == 0){
+          i++;
+          continue;
+        }
 
-        // if (tsp == 0){
-        //   i++;
-        //   continue;
-        // }
+        opti_deadline->time_limit_ns = overall_deadline * 1000000; // Convert ms to ns
+        opti_deadline->time_limit_ns *= static_cast<double>(num_agents) / num_grouped_agents;
+
 
         OptiPIBT(A_copy, nullptr, 0);
         refresh_lists(A_copy);
@@ -562,9 +569,6 @@ bool Planner::get_new_config(Node* S, Constraint* M)
             occupied_next[a->v_next_best->id] = a; // Reserve
             a->v_next = a->v_next_best;
         }
-
-        j = groups.size();
-        i++;
 
         // Record the end time of the iteration
         // Calculate and print the elapsed time for this iteration
@@ -576,11 +580,11 @@ bool Planner::get_new_config(Node* S, Constraint* M)
         // }
     }
   }
-  // int pen2 = 0;
-  // for (auto a: A){
-  //   pen2 += calculate_penalty(a);
-  // }
-  // print_penalty("costs.txt", pen2);
+  int pen2 = 0;
+  for (auto a: A){
+    pen2 += calculate_penalty(a);
+  }
+  pens2.push_back(pen2);
   groups.clear();
   return true;
 }
@@ -606,7 +610,7 @@ bool Planner::funcPIBT(Agent* ai)
                      D.get(i, u) + tie_breakers[u->id];
             });
 
-  // ai->C_next = C_next;
+  ai->C_next = C_next;
   ai->penalty = 0;
   // calculate ideal dist for penalty purposes
   int ideal_dist = D.get(ai->id, C_next[i][0]);  // Distance to goal if taking ideal move

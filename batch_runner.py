@@ -61,11 +61,10 @@ def parse_result_txt(result_file):
 
     return extracted_data
 
-def cost_processor(output_csv, map_folder):
+def cost_processor(cost_file, n):
     """
     Reads costs from costs.txt, processes them, and deletes the costs.txt file.
     """
-    cost_file = "costs.txt"
     if not os.path.exists(cost_file):
         print(f"Warning: {cost_file} not found. Skipping cost processing.")
         return None  # Return None if no costs found
@@ -83,16 +82,14 @@ def cost_processor(output_csv, map_folder):
 
     # Add costs to the results (assuming costs alternate between cost1 and cost2)
     results = []
-    cost1 = 0
-    cost2 = 0
-    for i in range(0, len(costs), 2):
-        cost1 += costs[i]
-        cost2 += costs[i + 1] if i + 1 < len(costs) else 0
-    results.append({"Cost1": cost1, "Cost2": cost2})
+    cost = 0
+    for i in range(0, len(costs)):
+        cost = costs[i]
+        results.append({f"Cost_{n}": cost})
 
     # Clean up: delete the costs file after processing
-    os.remove(cost_file)
-    print(f"Costs processed, {cost_file} deleted.")
+    # os.remove(cost_file)
+    # print(f"Costs processed, {cost_file} deleted.")
 
     return results  # Return the processed cost data
 
@@ -127,7 +124,7 @@ def lacam_batch_runner(output_csv, map_folder, result_file, max_time_threshold=5
         print(f"No .scen files found in {map_folder}. Please check the folder path.")
         return
     
-    max_n_limit = 1000  # Initially, no limit
+    max_n_limit = 200  # Initially, no limit
 
     # Check the maximum processed agents for the current scenario
     existing_data = pd.read_csv(output_csv) if os.path.exists(output_csv) else pd.DataFrame()
@@ -148,8 +145,54 @@ def lacam_batch_runner(output_csv, map_folder, result_file, max_time_threshold=5
         
         # Loop through different numbers of agents (N) using range(20, 600, 40)
         for N in range(max_processed_n, max_n_limit + 1, 40):  # Adjust these numbers as needed
-            for opti_deadline in [0, 1, 10, 100, 1000]:  # From 0ms to 1s inclusive
-                for bool_opti in [False, True]:  # Run for both False and True
+            for bool_opti in [False, True]:  # Run for both False and True
+                opti_deadline = 0
+                if bool_opti:
+                    for opti_deadline in [0,1,4,16,64,256]:  # From 0ms to 1s inclusive
+                        # print(f"Running lacam with N={N}, bool_opti={bool_opti}, opti_deadline={opti_deadline}ms, scenario={scen_file_path})...")
+                        # Reset args for each new scenario file
+                        args["args"] = [
+                            "-v", "1",
+                            "-m", f"{map_file_path}",  # Add the map file
+                            "-i",  f"{scen_file_path}",  # Add the current scenario file
+                            "-o", f"{result_file}"
+                        ]
+                        # Update the number of agents (N)
+                        args["args"] = ["-N", f"{N}"] + args["args"][1:]
+
+                        start_time = time.time()  # Start timer
+
+                        # Run lacam executable
+                        stdout, stderr = run_lacam(args, opti_deadline, bool_opti)
+
+                        # Calculate the elapsed time
+                        elapsed_time = time.time() - start_time
+
+                        if elapsed_time > max_time_threshold:
+                            print(f"Experiment with {N} agents took {elapsed_time:.2f} seconds, which exceeds the threshold of {max_time_threshold} seconds.")
+                            # Update the max_n_limit to stop further larger agent numbers for this and subsequent scenarios
+                            max_n_limit = N  # Set the new limit to the last successful N value
+                            print(f"scen_file: {scen_file}, max_n_limit: {max_n_limit}")
+                            skip_loop = True
+                            break  # Skip the remaining N values for this scenario
+
+                        # Parse the result file for output data
+                        parsed_data = parse_result_txt(result_file)
+                        
+                        if not parsed_data:
+                            print(f"Skipping experiment due to missing or invalid {result_file} for {scen_file}.")
+                            continue
+                        
+                        # Add additional fields to parsed data
+                        parsed_data["Opti_Deadline"] = opti_deadline
+                        parsed_data["Bool_Opti"] = bool_opti
+                        parsed_data["Scenario_File"] = scen_file
+                        parsed_data["N"] = N
+
+                        df = pd.DataFrame([parsed_data])
+                        df.to_csv(output_csv, mode='a', header=not os.path.exists(output_csv), index=False)
+                        # print(f"Results for {scen_file} with N={N} saved to {output_csv}")
+                else: 
                     # print(f"Running lacam with N={N}, bool_opti={bool_opti}, opti_deadline={opti_deadline}ms, scenario={scen_file_path})...")
                     # Reset args for each new scenario file
                     args["args"] = [
@@ -200,24 +243,140 @@ def lacam_batch_runner(output_csv, map_folder, result_file, max_time_threshold=5
 
     print("Batch processing complete.")
 
+def lacam_single_runner(output_csv, map_folder, result_file, max_time_threshold, N, bool_opti=True):
+    """
+    Runs lacam with varying opti_deadline values and logs results in a CSV file.
+    Loops through different number of agents (N), checks if execution time exceeds threshold, and stops early if needed.
+    """
+    # Arguments for lacam from launch.json
+    args = {
+        "program": "build/main",  # Path to your compiled binary
+        "args": [
+            "-v", "1"
+        ]
+    }
+
+    ogo = output_csv
+
+    # Get all .map files in the map folder
+    map_files = [f for f in os.listdir(map_folder) if f.endswith('.map')]
+    if not map_files:
+        print(f"No .map files found in {map_folder}. Please check the folder path.")
+        return
+    
+    # Use the first map file (you can modify this part if you need to choose specific map files)
+    map_file_path = os.path.join(map_folder, map_files[0])
+    args["args"].append(f"-m {map_file_path}")   # Add the map file
+
+    # Get all .scen files in the map folder
+    scen_files = [f for f in os.listdir(map_folder) if f.endswith('.scen')]
+    if not scen_files:
+        print(f"No .scen files found in {map_folder}. Please check the folder path.")
+        return
+    
+    max_n_limit = 1000  # Initially, no limit
+
+    # Check the maximum processed agents for the current scenario
+    existing_data = pd.read_csv(output_csv) if os.path.exists(output_csv) else pd.DataFrame()
+
+    # Loop through all .scen files in the map folder
+    for scen_file in scen_files:
+        scen_file_path = os.path.join(map_folder, scen_file)
+        output_csv = ogo + f"{scen_file}"
+        results_df = pd.DataFrame()
+        
+        max_processed_n = 20
+        skip_loop = False
+
+        if not existing_data.empty:
+            scenario_data = existing_data[existing_data["Scenario_File"] == scen_file]
+            if not scenario_data.empty:
+                max_processed_n = scenario_data["N"].max()
+                if max_processed_n >= max_n_limit:
+                    continue
+        
+        # Loop through different numbers of agents (N) using range(20, 600, 40)
+        for opti_deadline in [0, 1, 10, 100, 1000]:  # From 0ms to 1s inclusive
+            # print(f"Running lacam with N={N}, bool_opti={bool_opti}, opti_deadline={opti_deadline}ms, scenario={scen_file_path})...")
+            # Reset args for each new scenario file
+            args["args"] = [
+                "-v", "1",
+                "-m", f"{map_file_path}",  # Add the map file
+                "-i",  f"{scen_file_path}",  # Add the current scenario file
+                "-o", f"{result_file}"
+            ]
+            # Update the number of agents (N)
+            args["args"] = ["-N", f"{N}"] + args["args"][1:]
+
+            start_time = time.time()  # Start timer
+
+            # Run lacam executable
+            stdout, stderr = run_lacam(args, opti_deadline, bool_opti)
+
+            # Calculate the elapsed time
+            elapsed_time = time.time() - start_time
+
+            if elapsed_time > max_time_threshold:
+                print(f"Experiment with {N} agents took {elapsed_time:.2f} seconds, which exceeds the threshold of {max_time_threshold} seconds.")
+                # Update the max_n_limit to stop further larger agent numbers for this and subsequent scenarios
+                max_n_limit = N  # Set the new limit to the last successful N value
+                print(f"scen_file: {scen_file}, max_n_limit: {max_n_limit}")
+                skip_loop = True
+                break  # Skip the remaining N values for this scenario
+
+            # Parse the result file for output data
+            # parsed_data = parse_result_txt(result_file)
+            # Parse the result file for output data
+            cost_data = cost_processor("costs1.txt", opti_deadline)
+            cost_data2 = cost_processor("costs2.txt", opti_deadline)
+
+            if cost_data and cost_data2:
+                # Ensure both cost_data lists have the same length
+                if len(cost_data) != len(cost_data2):
+                    print(f"Warning: Mismatch in lengths of cost_data ({len(cost_data)}) and cost_data2 ({len(cost_data2)}).")
+                    # Truncate to the shorter length
+                    min_length = min(len(cost_data), len(cost_data2))
+                    cost_data = cost_data[:min_length]
+                    cost_data2 = cost_data2[:min_length]
+
+                # Combine costs into the DataFrame with distinct columns for each opti_deadline
+                combined_data = [
+                    {
+                        **{"Scenario_File": scen_file, "Opti_Deadline": opti_deadline},
+                        f"Cost_1_{opti_deadline}": cost1[f"Cost_{opti_deadline}"],
+                        f"Cost_2_{opti_deadline}": cost2[f"Cost_{opti_deadline}"],
+                    }
+                    for cost1, cost2 in zip(cost_data, cost_data2)
+                ]
+
+                # Append the combined data to the results DataFrame
+                results_df = pd.concat(
+                    [results_df, pd.DataFrame(combined_data)],
+                    ignore_index=True
+                )
+
+        # Save the results for the scenario to CSV
+        results_df.to_csv(output_csv, index=False)
+        print(f"Results for {scen_file} saved to {output_csv}.")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Batch runner for lacam experiments.")
     parser.add_argument(
         "--output_csv",
         type=str,
-        required=True,
+        required=False,
         help="Path to the output CSV file where results will be saved."
     )
     parser.add_argument(
         "--map_folder",
         type=str,
-        required=True,
+        required=False,
         help="Path to the folder containing map and scenario files."
     )
     parser.add_argument(
         "--result_file",
         type=str,
-        required=True,
+        required=False,
         help="Path to the result.txt file generated by lacam."
     )
     parser.add_argument(
@@ -236,4 +395,13 @@ if __name__ == "__main__":
         result_file=args.result_file,
         max_time_threshold=args.max_time_threshold
     )
+    # lacam_single_runner(
+    #     output_csv=args.output_csv,
+    #     map_folder=args.map_folder,
+    #     result_file=args.result_file,
+    #     max_time_threshold=args.max_time_threshold,
+    #     N=500,
+    #     bool_opti=True
+    # )
+
 
